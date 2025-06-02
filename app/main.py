@@ -132,7 +132,7 @@ async def downloader_utility_data(taxonomy_filter: str, data_status: str, experi
                     "bool": {
                         "must": [{
                             "term": {
-                                "experiment.library_construction_protocol.keyword": experiment_type
+                                "experiment.library_construction_protocol": experiment_type
                             }
                         }]
                     }
@@ -306,7 +306,7 @@ async def root(index: str, offset: int = 0, limit: int = 15,
                 "aggs": {
                     "library_construction_protocol": {
                         "terms": {
-                            "field": "experiment.library_construction_protocol.keyword",
+                            "field": "experiment.library_construction_protocol",
                             "size": 20
                         },
                         "aggs": {
@@ -416,7 +416,12 @@ async def root(index: str, offset: int = 0, limit: int = 15,
             else:
                 filter_name, filter_value = filter_item.split(":")
 
-                if filter_name == 'experimentType':
+                # Handle both experimentType and experiment.library_construction_protocol formats
+                if filter_name == 'experimentType' or filter_name == 'experiment.library_construction_protocol':
+                    # If the filter name is experiment.library_construction_protocol, use it directly
+                    # Otherwise, construct the nested path for experimentType
+                    field_path = "experiment.library_construction_protocol"
+                    
                     nested_dict = {
                         "nested": {
                             "path": "experiment",
@@ -424,9 +429,7 @@ async def root(index: str, offset: int = 0, limit: int = 15,
                                 "bool": {
                                     "filter": {
                                         "term": {
-                                            "experiment"
-                                            ".library_construction_protocol"
-                                            ".keyword": filter_value
+                                            field_path: filter_value
                                         }
                                     }
                                 }
@@ -441,6 +444,52 @@ async def root(index: str, offset: int = 0, limit: int = 15,
                                 'must': [
                                     {'exists': {
                                         'field': 'genome_notes.url'}}]}}}}
+                    body["query"]["bool"]["filter"].append(nested_dict)
+                # Handle taxonomy filters (kingdom, phylum, class, etc.)
+                elif filter_name in ["kingdom",
+        "phylum",
+        "class",
+        "order",
+        "family",
+        "genus",
+        "species",
+        "cohort",
+        "forma",
+        "infraclass",
+        "infraorder",
+        "parvorder",
+        "section",
+        "series",
+        "species_group",
+        "species_subgroup",
+        "subclass",
+        "subcohort",
+        "subfamily",
+        "subgenus",
+        "subkingdom",
+        "suborder",
+        "subphylum",
+        "subsection",
+        "subspecies",
+        "subtribe",
+        "superclass",
+        "superfamily",
+        "superkingdom",
+        "superorder",
+        "superphylum",
+        "tribe",
+        "varietas"]:
+                    nested_dict = {
+                        'nested': {'path': f'taxonomies.{filter_name}', 'query': {
+                            'bool': {
+                                'must': [
+                                    {'term': {
+                                        f'taxonomies.{filter_name}.scientificName': filter_value
+                                    }}
+                                ]
+                            }
+                        }}
+                    }
                     body["query"]["bool"]["filter"].append(nested_dict)
                 else:
                     body["query"]["bool"]["filter"].append(
@@ -468,7 +517,7 @@ async def root(index: str, offset: int = 0, limit: int = 15,
                     }
                 }
             })
-
+    
     if action == 'download':
         try:
             response = await es.search(index=index, sort=sort, from_=offset,
