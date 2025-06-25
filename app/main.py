@@ -20,6 +20,7 @@ api_router = APIRouter(prefix="/api")
 origins = [
     "http://localhost:4200",
     "http://127.0.0.1:4200",
+    "https://atol-frontend-lpqyf25xlq-ts.a.run.app",
     "*"
 ]
 
