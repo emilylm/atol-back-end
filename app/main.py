@@ -15,7 +15,7 @@ from .constants import DATA_PORTAL_AGGREGATIONS, ARTICLES_AGGREGATIONS, PHYLOGEN
 app = FastAPI()
 
 # Create API router to handle /api prefix
-api_router = APIRouter(prefix="/api")
+api_router = APIRouter(prefix="/api", include_in_schema=True)
 
 origins = [
     "http://localhost:4200",
@@ -280,11 +280,16 @@ def create_data_files_csv(results, download_option, index_name):
     return io.BytesIO(output.getvalue().encode('utf-8'))
 
 
-@api_router.get("/{index}")
+@api_router.get("/{index}", include_in_schema=True)
 async def root(index: str, offset: int = 0, limit: int = 15,
                sort: str | None = None, filter: str | None = None,
                search: str | None = None, current_class: str = 'kingdom',
                phylogeny_filters: str | None = None, action: str = None):
+    # Skip processing for documentation routes
+    if index in ['redoc', 'docs', 'openapi.json']:
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url=f"/{index}")
+    # Skip processing for favicon.ico
     if index == 'favicon.ico':
         return None
 
